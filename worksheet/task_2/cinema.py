@@ -18,14 +18,14 @@ def customer_tickets(conn, customer_id):
     Include only tickets purchased by the given customer_id.
     Order results by film title alphabetically.
     """
-    conn = sqlite3.connect('tickets.db')
-    query = """SELECT films.title AS film_title, screenings.screen, tickets.price
+    query = """
+    SELECT films.title AS film_title, screenings.screen, tickets.price
     FROM tickets
-    JOIN fims ON films.film_id = screenings.film_id
     JOIN screenings ON screenings.screening_id = tickets.screening_id
+    JOIN films ON films.film_id = screenings.film_id
+    WHERE tickets.customer_id = ?
     ORDER BY film_title ASC;
     """
-
     cursor = conn.execute(query, (customer_id,))
     return cursor.fetchall()
 
@@ -38,15 +38,15 @@ def screening_sales(conn):
     Include all screenings, even if tickets_sold is 0.
     Order results by tickets_sold descending.
     """
-    conn = sqlite3.connect('tickets.db')
     query = """
-    SELECT screenings.screening_id, films.title AS film_title, COUNT(tickets.customer_id) AS tickets_sold
-    FROM tickets
+    SELECT screenings.screening_id, films.title AS film_title, COUNT(tickets.ticket_id) AS tickets_sold
+    FROM screenings
     JOIN films ON films.film_id = screenings.film_id
-    JOIN screenings ON screenings.screening_id = tickets.screening_id
-    ORDER BY tickets_sold DESC
+    LEFT JOIN tickets ON tickets.screening_id = screenings.screening_id
+    GROUP BY screenings.screening_id, films.title
+    ORDER BY tickets_sold DESC;
     """
-    cursor = conn.execute(query,)
+    cursor = conn.execute(query)
     return cursor.fetchall()
 
 
@@ -60,13 +60,13 @@ def top_customers_by_spend(conn, limit):
     Order by total_spent descending.
     Limit the number of rows returned to `limit`.
     """
-    conn = sqlite3.connect('tickets.db')
     query = """
-    SELECT customer.customer_name, SUM(tickets.price) AS total_spent
+    SELECT customers.customers_name, SUM(tickets.price) AS total_spent
     FROM tickets
-    JOIN customer ON tickets.customer_id = customer.customer_id
-    GROUP BY customer.customer_id, customer.customer_name
-    ORDER BY total_spent DESC LIMIT ?
+    JOIN customers ON tickets.customer_id = customers.customers_id
+    GROUP BY customers.customers_id, customers.customers_name
+    ORDER BY total_spent DESC
+    LIMIT ?;
     """
-    cursor = conn.execute(query,(limit,))
+    cursor = conn.execute(query, (limit,))
     return cursor.fetchall()
